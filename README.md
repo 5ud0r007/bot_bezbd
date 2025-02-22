@@ -23,7 +23,7 @@
 
 ## 🚀 Установка и запуск
 
- ```pip install -r requirements.txt** in terminal```
+** ```pip install -r requirements.txt in terminal``` **
 
 ## 📂 Структура проекта
 ```
