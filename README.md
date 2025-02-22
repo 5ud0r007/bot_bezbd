@@ -36,7 +36,7 @@ bot_bezbd/
 🤝 Контакты
 Если у вас есть вопросы или предложения, свяжитесь со мной:
 
-Telegram: [@ваш_ник](https://t.me/SoulArcanum)
+Telegram: [LOADERAW](https://t.me/SoulArcanum)
 
 Email: NOOOOOOOOOOOOO
 
