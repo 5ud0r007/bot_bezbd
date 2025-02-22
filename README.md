@@ -1,9 +1,3 @@
 <div>
-    <p>
-      ⠀⠀⠀⠀⠀⠀⠀⢸⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀ㅤ⠀⠀⠀  ⠀⠀ㅤ⠀⢰⡿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀<br>
-      ⠀⠀⠀⠀⠀⠀⠀⣾⠇⠀⢠⣶⠛⠻⣷⠀⠀⠐⠛⢻⣷⠀⢀⣶⠟⠛⣿⠇⠀⢠⣶⠛⢻⣦⠀⢠⣿⠚⠛⠀⠀⠞⠛⢻⡆⠀⣿⡇⢀⣾⡇⠀⣾⠃⠀⠀⠀⠀⠀⠀<br>
-      ⠀⠀⠀⠀⠀⠀⢠⣿⠀⠀⣿⡇⠀⣰⡿⠀⣠⡴⠒⢺⡟⠀⣼⡏⠀⢠⣿⠀⠀⣾⡏⠉⠉⠉⠀⣸⡇⠀⠀⠀⣤⠖⠒⣿⠇⠀⢹⣇⡞⢹⣇⣼⠃⠀⠀⠀⠀⠀⠀⠀<br>
-      ⠀⠀⠀⠀⠀⠀⠸⠇⠀⠀⠙⠷⠾⠛⠁⠀⠻⠷⠖⠿⠃⠀⠘⠿⠖⠻⠇⠀⠀⠙⠷⠶⠚⠀⠀⠿⠁⠀⠀⠀⠻⠶⠺⠿⠀⠀⠸⠟⠁⠸⠿⠃⠀⠀⠀⠀⠀⠀⠀<br>
-    </p>
-    <img src="https://github.com/5ud0r007/bot_bezbd/blob/main/readme_photo/photo%201.gif">
+    img src="https://github.com/5ud0r007/bot_bezbd/blob/main/readme_photo/photo%201.gif" alt="LOADERAW" width="100%">
 </div>
