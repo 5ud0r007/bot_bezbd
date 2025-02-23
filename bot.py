@@ -2,9 +2,25 @@ from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import sqlite3
 import re
-from config import BOT_TOKEN, ADMIN_USER_ID, DB_NAME  # ZXC LOADERAW: Импортируем конфигурацию.
+from openai import OpenAI
+from config import BOT_TOKEN, ADMIN_USER_ID, DB_NAME, OPENAI_API_KEY, OPENAI_PROMPT
 
-# ZXC LOADERAW: База данных. Если ее нет, создаем.
+client = OpenAI(api_key=OPENAI_API_KEY, base_url="URL___________________________") #URL GPT или DeepSeek и т.д
+
+def get_chatgpt_response(prompt):
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": OPENAI_PROMPT},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"Ошибка при запросе к ChatGPT: {e}")
+        return None
+
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -21,9 +37,7 @@ def init_db():
     cursor.execute("PRAGMA table_info(tickets)")
     columns = [column[1] for column in cursor.fetchall()]
     if 'updated' not in columns:
-        cursor.execute('''
-            ALTER TABLE tickets ADD COLUMN updated BOOLEAN DEFAULT FALSE
-        ''')
+        cursor.execute('ALTER TABLE tickets ADD COLUMN updated BOOLEAN DEFAULT FALSE')
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS ticket_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,72 +51,52 @@ def init_db():
     conn.commit()
     conn.close()
 
-# ZXC LOADERAW: Добавляем тикет. Если пользователь уже создал тикет, он не сможет создать новый.
 def add_ticket(user_id: int, username: str, message: str):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO tickets (user_id, username, message) VALUES (?, ?, ?)
-    ''', (user_id, username, message))
+    cursor.execute('INSERT INTO tickets (user_id, username, message) VALUES (?, ?, ?)', (user_id, username, message))
     ticket_id = cursor.lastrowid
     conn.commit()
     conn.close()
     return ticket_id
 
-# ZXC LOADERAW: Добавляем сообщение в тикет. Если это не админ, тикет помечается как обновленный.
 def add_ticket_message(ticket_id: int, sender_id: int, message: str):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO ticket_messages (ticket_id, sender_id, message) VALUES (?, ?, ?)
-    ''', (ticket_id, sender_id, message))
+    cursor.execute('INSERT INTO ticket_messages (ticket_id, sender_id, message) VALUES (?, ?, ?)', (ticket_id, sender_id, message))
     if sender_id != ADMIN_USER_ID:
-        cursor.execute('''
-            UPDATE tickets SET updated = TRUE WHERE id = ?
-        ''', (ticket_id,))
+        cursor.execute('UPDATE tickets SET updated = TRUE WHERE id = ?', (ticket_id,))
     conn.commit()
     conn.close()
 
-# ZXC LOADERAW: Получаем все открытые тикеты. Закрытые тикеты не показываются.
 def get_active_tickets():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute('''
-        SELECT id, user_id, username, message, updated FROM tickets WHERE status = 'open'
-    ''')
+    cursor.execute('SELECT id, user_id, username, message, updated FROM tickets WHERE status = "open"')
     tickets = cursor.fetchall()
     conn.close()
     return tickets
 
-# ZXC LOADERAW: Считаем обновленные тикеты. Если их больше нуля, админ увидит (+N).
 def get_updated_tickets_count():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute('''
-        SELECT COUNT(*) FROM tickets WHERE status = 'open' AND updated = TRUE
-    ''')
+    cursor.execute('SELECT COUNT(*) FROM tickets WHERE status = "open" AND updated = TRUE')
     count = cursor.fetchone()[0]
     conn.close()
     return count
 
-# ZXC LOADERAW: Получаем переписку по тикету. Если тикет закрыт, переписка недоступна.
 def get_ticket_messages(ticket_id: int):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute('''
-        SELECT sender_id, message, timestamp FROM ticket_messages WHERE ticket_id = ? ORDER BY timestamp
-    ''', (ticket_id,))
+    cursor.execute('SELECT sender_id, message, timestamp FROM ticket_messages WHERE ticket_id = ? ORDER BY timestamp', (ticket_id,))
     messages = cursor.fetchall()
     conn.close()
     return messages
 
-# ZXC LOADERAW: Закрываем тикет. После этого его нельзя будет открыть.
 def close_ticket(ticket_id: int):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute('''
-        UPDATE tickets SET status = 'closed' WHERE id = ?
-    ''', (ticket_id,))
+    cursor.execute('UPDATE tickets SET status = "closed" WHERE id = ?', (ticket_id,))
     conn.commit()
     conn.close()
 
@@ -110,263 +104,188 @@ init_db()
 
 user_keyboard = ReplyKeyboardMarkup([["Оставить тикет 📩"]], resize_keyboard=True)
 
-# ZXC LOADERAW: Клавиатура для админа. Показывает количество обновленных тикетов и кнопку для ответа на последний тикет.
 def get_admin_keyboard(last_ticket_id=None):
     updated_count = get_updated_tickets_count()
     buttons = []
-
-    # Добавляем кнопку для ответа на последний тикет
     if last_ticket_id:
         buttons.append([f"Ответить на тикет ({last_ticket_id}) 📩"])
-
-    # Добавляем кнопку "Активные тикеты" с количеством обновленных
     if updated_count > 0:
         buttons.append([f"Активные тикеты 📋 (+{updated_count})"])
     else:
         buttons.append(["Активные тикеты 📋"])
-
     return ReplyKeyboardMarkup(buttons, resize_keyboard=True)
 
-# ZXC LOADERAW: Старт. Если ты админ, тебе покажут кнопки управления тикетами.
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     if user_id == ADMIN_USER_ID:
-        await update.message.reply_text(
-            "Привет, администратор! 👋 Используй кнопки ниже для управления тикетами. 🛠️",
-            reply_markup=get_admin_keyboard()
-        )
+        await update.message.reply_text("Привет, администратор! 👋 Используй кнопки ниже для управления тикетами. 🛠️", reply_markup=get_admin_keyboard())
     else:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
-        cursor.execute('''SELECT id FROM tickets WHERE user_id = ? AND status = 'open' ''', (user_id,))
+        cursor.execute('SELECT id FROM tickets WHERE user_id = ? AND status = "open"', (user_id,))
         active_ticket = cursor.fetchone()
         conn.close()
-
         if active_ticket:
-            await update.message.reply_text(
-                "Привет! 👋 У тебя есть активный тикет. Закрой его или напиши сообщение. 📝",
-                reply_markup=ReplyKeyboardMarkup([["Закрыть тикет 🚪"]], resize_keyboard=True)
-            )
+            await update.message.reply_text("Привет! 👋 У тебя есть активный тикет. Закрой его или напиши сообщение. 📝", reply_markup=ReplyKeyboardMarkup([["Закрыть тикет 🚪"]], resize_keyboard=True))
         else:
-            await update.message.reply_text(
-                "Привет! 👋 Используй кнопку ниже, чтобы создать новый тикет. 📩",
-                reply_markup=user_keyboard
-            )
+            await update.message.reply_text("Привет! 👋 Используй кнопку ниже, чтобы создать новый тикет. 📩", reply_markup=user_keyboard)
 
-# ZXC LOADERAW: Создание тикета. Если у пользователя уже есть активный тикет, новый создать нельзя.
 async def create_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     if user_id == ADMIN_USER_ID:
         await update.message.reply_text("Ты администратор. Используй кнопку 'Активные тикеты 📋'.")
         return
-
     username = update.message.from_user.username or update.message.from_user.first_name
-
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute('''SELECT id FROM tickets WHERE user_id = ? AND status = 'open' ''', (user_id,))
+    cursor.execute('SELECT id FROM tickets WHERE user_id = ? AND status = "open"', (user_id,))
     active_ticket = cursor.fetchone()
     conn.close()
-
     if active_ticket:
         await update.message.reply_text("У тебя уже есть активный тикет. Закрой его, чтобы создать новый. 🚪")
     else:
         await update.message.reply_text("Опиши свой запрос: 📝")
         context.user_data["awaiting_ticket_description"] = True
 
-# ZXC LOADERAW: Обработка текстовых сообщений. Если это не админ, создаем тикет или добавляем сообщение.
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     message = update.message.text
-
     if user_id != ADMIN_USER_ID:
         if context.user_data.get("awaiting_ticket_description"):
             username = update.message.from_user.username or update.message.from_user.first_name
             ticket_id = add_ticket(user_id, username, message)
             add_ticket_message(ticket_id, user_id, message)
-            await update.message.reply_text("Тикет создан. Ожидай ответа администратора. ⏳")
+            chatgpt_response = get_chatgpt_response(message)
+            if chatgpt_response:
+                add_ticket_message(ticket_id, ADMIN_USER_ID, chatgpt_response)
+                await update.message.reply_text(f"🤖: {chatgpt_response}")
+            await update.message.reply_text("Теперь у тебя есть активный тикет. Закрой его или напиши сообщение. 📝", reply_markup=ReplyKeyboardMarkup([["Закрыть тикет 🚪"]], resize_keyboard=True))
+            await context.bot.send_message(chat_id=ADMIN_USER_ID, text=f"Создан новый тикет (ID {ticket_id}) от пользователя {username}.\n\nСообщение: {message}", reply_markup=get_admin_keyboard(last_ticket_id=ticket_id))
             context.user_data["awaiting_ticket_description"] = False
-
-            await update.message.reply_text(
-                "Теперь у тебя есть активный тикет. Закрой его или напиши сообщение. 📝",
-                reply_markup=ReplyKeyboardMarkup([["Закрыть тикет 🚪"]], resize_keyboard=True)
-            )
-
-            # Отправляем уведомление администратору с кнопкой для ответа на новый тикет
-            await context.bot.send_message(
-                chat_id=ADMIN_USER_ID,
-                text=f"Создан новый тикет (ID {ticket_id}) от пользователя {username}.\n\nСообщение: {message}",
-                reply_markup=get_admin_keyboard(last_ticket_id=ticket_id)
-            )
         else:
             conn = sqlite3.connect(DB_NAME)
             cursor = conn.cursor()
-            cursor.execute('''SELECT id FROM tickets WHERE user_id = ? AND status = 'open' ''', (user_id,))
+            cursor.execute('SELECT id FROM tickets WHERE user_id = ? AND status = "open"', (user_id,))
             active_ticket = cursor.fetchone()
             conn.close()
-
             if active_ticket:
                 ticket_id = active_ticket[0]
                 add_ticket_message(ticket_id, user_id, message)
                 await update.message.reply_text("Сообщение добавлено в тикет. 📝")
-
-                await context.bot.send_message(
-                    chat_id=ADMIN_USER_ID,
-                    text=f"Тикет (ID {ticket_id}) обновлен пользователем {username}.\n\nНовое сообщение: {message}",
-                    reply_markup=get_admin_keyboard(last_ticket_id=ticket_id)
-                )
+                await context.bot.send_message(chat_id=ADMIN_USER_ID, text=f"Тикет (ID {ticket_id}) обновлен пользователем {username}.\n\nНовое сообщение: {message}", reply_markup=get_admin_keyboard(last_ticket_id=ticket_id))
             else:
-                await update.message.reply_text("Используй кнопки для управления тикетами. 🎛️")
+                await update.message.reply_text("Используй кнопки для управления тикетами. 🎛️", reply_markup=user_keyboard)
         return
-
     if re.match(r"^Назад\s*🔙$", message):
-        await update.message.reply_text(
-            "Возвращаемся в главное меню. 🏠",
-            reply_markup=get_admin_keyboard()
-        )
+        await update.message.reply_text("Возвращаемся в главное меню. 🏠", reply_markup=get_admin_keyboard())
         context.user_data.pop("selected_ticket_id", None)
         context.user_data.pop("awaiting_admin_response", None)
         return
-
     if re.match(r"^Активные тикеты\s*📋", message):
         await show_tickets(update, context)
         return
-
     if context.user_data.get("awaiting_admin_response"):
         ticket_id = context.user_data["selected_ticket_id"]
         add_ticket_message(ticket_id, ADMIN_USER_ID, message)
-
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
-        cursor.execute('''UPDATE tickets SET updated = FALSE WHERE id = ?''', (ticket_id,))
+        cursor.execute('UPDATE tickets SET updated = FALSE WHERE id = ?', (ticket_id,))
         conn.commit()
         conn.close()
-
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
-        cursor.execute('''SELECT user_id, username FROM tickets WHERE id = ?''', (ticket_id,))
+        cursor.execute('SELECT user_id, username FROM tickets WHERE id = ?', (ticket_id,))
         ticket = cursor.fetchone()
         conn.close()
-
         if ticket:
             user_id_to_reply = ticket[0]
             username = ticket[1]
             try:
-                await context.bot.send_message(
-                    chat_id=user_id_to_reply,
-                    text=f"Ответ администратора на твой тикет (ID {ticket_id}):\n\n{message}"
-                )
-                await update.message.reply_text(
-                    f"Ответ отправлен пользователю @{username}. ✅",
-                    reply_markup=get_admin_keyboard()
-                )
+                await context.bot.send_message(chat_id=user_id_to_reply, text=f"Ответ администратора на твой тикет (ID {ticket_id}):\n\n{message}")
+                await update.message.reply_text(f"Ответ отправлен пользователю @{username}. ✅", reply_markup=get_admin_keyboard())
             except Exception as e:
                 await update.message.reply_text(f"Ошибка при отправке сообщения: {e}")
         else:
             await update.message.reply_text("Тикет не найден. ❌")
-
         context.user_data.pop("selected_ticket_id", None)
         context.user_data.pop("awaiting_admin_response", None)
     else:
         await update.message.reply_text("Используй кнопки для управления тикетами. 🎛️")
 
-# ZXC LOADERAW: Закрытие тикета. После этого тикет нельзя будет открыть.
 async def close_user_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
-
     if user_id == ADMIN_USER_ID:
-        # Если это администратор, закрываем выбранный тикет
         if "selected_ticket_id" in context.user_data:
             ticket_id = context.user_data["selected_ticket_id"]
             close_ticket(ticket_id)
-
-            # Получаем информацию о пользователе, чтобы уведомить его
             conn = sqlite3.connect(DB_NAME)
             cursor = conn.cursor()
-            cursor.execute('''SELECT user_id, username FROM tickets WHERE id = ?''', (ticket_id,))
+            cursor.execute('SELECT user_id, username FROM tickets WHERE id = ?', (ticket_id,))
             ticket = cursor.fetchone()
             conn.close()
-
             if ticket:
                 user_id_to_reply = ticket[0]
                 try:
-                    await context.bot.send_message(
-                        chat_id=user_id_to_reply,
-                        text=f"Твой тикет (ID {ticket_id}) был закрыт администратором. 🚪",
-                        reply_markup=ReplyKeyboardMarkup([["Оставить тикет 📩"]], resize_keyboard=True)
-                    )
+                    await context.bot.send_message(chat_id=user_id_to_reply, text=f"Твой тикет (ID {ticket_id}) был закрыт администратором. 🚪", reply_markup=ReplyKeyboardMarkup([["Оставить тикет 📩"]], resize_keyboard=True))
                 except Exception as e:
                     await update.message.reply_text(f"Ошибка при отправке уведомления пользователю: {e}")
-
-            await update.message.reply_text(
-                "Тикет успешно закрыт. 🚪",
-                reply_markup=get_admin_keyboard()
-            )
+            await update.message.reply_text("Тикет успешно закрыт. 🚪", reply_markup=get_admin_keyboard())
             context.user_data.pop("selected_ticket_id", None)
             context.user_data.pop("awaiting_admin_response", None)
         else:
             await update.message.reply_text("Выбери тикет для закрытия. ❌")
     else:
-        # Если это обычный пользователь, закрываем его активный тикет
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
-        cursor.execute('''SELECT id FROM tickets WHERE user_id = ? AND status = 'open' ''', (user_id,))
+        cursor.execute('SELECT id FROM tickets WHERE user_id = ? AND status = "open"', (user_id,))
         active_ticket = cursor.fetchone()
         conn.close()
-
         if active_ticket:
             ticket_id = active_ticket[0]
             close_ticket(ticket_id)
-            await update.message.reply_text("Тикет закрыт. ✅")
-            await update.message.reply_text(
-                "Теперь у тебя нет активных тикетов. Используй кнопку ниже, чтобы создать новый. 📩",
-                reply_markup=user_keyboard
+            await update.message.reply_text("Тикет закрыт. ✅", reply_markup=ReplyKeyboardMarkup([["Оставить тикет 📩"]], resize_keyboard=True))
+
+            # ресет клавы у админа, после закрытие клиентом и текст и лень писать
+            await context.bot.send_message(
+                chat_id=ADMIN_USER_ID,
+                text=f"Тикет (ID {ticket_id}) был закрыт клиентом.",
+                reply_markup=get_admin_keyboard()
             )
         else:
-            await update.message.reply_text("У тебя нет активных тикетов. ❌")
+            await update.message.reply_text("У тебя нет активных тикетов. ❌", reply_markup=ReplyKeyboardMarkup([["Оставить тикет 📩"]], resize_keyboard=True))
 
-# ZXC LOADERAW: Ответ на тикет. Если тикет закрыт, ответить нельзя.
 async def reply_to_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     if user_id != ADMIN_USER_ID:
         await update.message.reply_text("У тебя нет доступа к этой команде. ❌")
         return
-
-    ticket_id = int(re.search(r"\((\d+)\)", update.message.text).group(1))  # Извлекаем ID тикета.
-
+    ticket_id = int(re.search(r"\((\d+)\)", update.message.text).group(1))
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute('''SELECT username, status FROM tickets WHERE id = ?''', (ticket_id,))
+    cursor.execute('SELECT username, status FROM tickets WHERE id = ?', (ticket_id,))
     ticket = cursor.fetchone()
     conn.close()
-
     if ticket:
         username, status = ticket
         if status == "closed":
             await update.message.reply_text("Тикет закрыт. ❌")
             return
-
         messages = get_ticket_messages(ticket_id)
         response = f"Переписка по тикету {ticket_id} с @{username}:\n\n"
         for msg in messages:
             sender = "Админ" if msg[0] == ADMIN_USER_ID else "Пользователь"
             response += f"{sender}: {msg[1]}\n"
-        await update.message.reply_text(
-            response,
-            reply_markup=ReplyKeyboardMarkup([["Закрыть тикет ❌", "Назад 🔙"]], resize_keyboard=True)
-        )
+        await update.message.reply_text(response, reply_markup=ReplyKeyboardMarkup([["Закрыть тикет ❌", "Назад 🔙"]], resize_keyboard=True))
         context.user_data["selected_ticket_id"] = ticket_id
         context.user_data["awaiting_admin_response"] = True
     else:
         await update.message.reply_text("Тикет не найден. ❌")
 
-# ZXC LOADERAW: Показ активных тикетов. Закрытые тикеты не отображаются.
 async def show_tickets(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     if user_id != ADMIN_USER_ID:
         await update.message.reply_text("У тебя нет доступа к этой команде. ❌")
         return
-
     tickets = get_active_tickets()
     if tickets:
         response = "Активные тикеты: 📋\n\n"
@@ -374,18 +293,12 @@ async def show_tickets(update: Update, context: ContextTypes.DEFAULT_TYPE):
             updated_status = " (Обновлено) 🔄" if ticket[4] else ""
             response += f"ID: {ticket[0]}\nПользователь: {ticket[2]} (ID: {ticket[1]})\nЗапрос: {ticket[3]}{updated_status}\n\n"
         response += "Выбери тикет для ответа: 📩"
-
         buttons = [[f"Ответить на тикет ({ticket[0]}) 📩"] for ticket in tickets]
         buttons.append(["Назад 🔙"])
-
-        await update.message.reply_text(
-            response,
-            reply_markup=ReplyKeyboardMarkup(buttons, resize_keyboard=True)
-        )
+        await update.message.reply_text(response, reply_markup=ReplyKeyboardMarkup(buttons, resize_keyboard=True))
     else:
         await update.message.reply_text("Активных тикетов нет. ❌")
 
-# ZXC LOADERAW: Запуск бота.
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
