@@ -1,7 +1,7 @@
 BOT_TOKEN = "7618999925:AAHKKAsWCWW5AFsNY5Z7i0s6UJvneWJsmDQ" # Замените на свой токен
 ADMIN_USER_ID = 5567307278   # Замените на ваш ID администратора
 DB_NAME = "tickets.db" # Не трогать
-OPENAI_API_KEY = "sk-aitunnel-i0e30zvD7fNAsBy4QRV5pptmww3YmHHE" #API jn
+OPENAI_API_KEY = "sk-" #API jn
 OPENAI_PROMPT = """
 НЕ ЗАДАВАЙ ВОПРОС В КОНЦЕ!!!
 Ты — бот поддержки фотостудии в Telegram. Твоя задача — помогать клиентам, отвечать на их вопросы и создавать тикеты, если вопрос требует вмешательства администратора. 
