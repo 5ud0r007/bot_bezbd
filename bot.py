@@ -5,7 +5,7 @@ import re
 from openai import OpenAI
 from config import BOT_TOKEN, ADMIN_USER_ID, DB_NAME, OPENAI_API_KEY, OPENAI_PROMPT
 
-client = OpenAI(api_key=OPENAI_API_KEY, base_url="URL___________________________") #URL GPT или DeepSeek и т.д
+client = OpenAI(api_key=OPENAI_API_KEY, base_url="https://api.aitunnel.ru/v1/")
 
 def get_chatgpt_response(prompt):
     try:
@@ -20,6 +20,9 @@ def get_chatgpt_response(prompt):
     except Exception as e:
         print(f"Ошибка при запросе к ChatGPT: {e}")
         return None
+
+def should_create_ticket(response):
+    return "вызываю администратора для решения вашего вопроса" in response.lower()
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -151,31 +154,34 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = update.message.from_user.id
     message = update.message.text
     if user_id != ADMIN_USER_ID:
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute('SELECT id FROM tickets WHERE user_id = ? AND status = "open"', (user_id,))
+        active_ticket = cursor.fetchone()
+        conn.close()
+
+        if active_ticket:
+            await update.message.reply_text("Используй кнопки для управления тикетами. 🎛️", reply_markup=ReplyKeyboardMarkup([["Закрыть тикет 🚪"]], resize_keyboard=True))
+            return
+
         if context.user_data.get("awaiting_ticket_description"):
             username = update.message.from_user.username or update.message.from_user.first_name
-            ticket_id = add_ticket(user_id, username, message)
-            add_ticket_message(ticket_id, user_id, message)
             chatgpt_response = get_chatgpt_response(message)
             if chatgpt_response:
-                add_ticket_message(ticket_id, ADMIN_USER_ID, chatgpt_response)
                 await update.message.reply_text(f"🤖: {chatgpt_response}")
-            await update.message.reply_text("Теперь у тебя есть активный тикет. Закрой его или напиши сообщение. 📝", reply_markup=ReplyKeyboardMarkup([["Закрыть тикет 🚪"]], resize_keyboard=True))
-            await context.bot.send_message(chat_id=ADMIN_USER_ID, text=f"Создан новый тикет (ID {ticket_id}) от пользователя {username}.\n\nСообщение: {message}", reply_markup=get_admin_keyboard(last_ticket_id=ticket_id))
+                if should_create_ticket(chatgpt_response):
+                    ticket_id = add_ticket(user_id, username, message)
+                    add_ticket_message(ticket_id, user_id, message)
+                    add_ticket_message(ticket_id, ADMIN_USER_ID, chatgpt_response)
+                    await update.message.reply_text("Тикет передан админу, скоро с вами свяжутся. 📩", reply_markup=ReplyKeyboardMarkup([["Закрыть тикет 🚪"]], resize_keyboard=True))
+                    await context.bot.send_message(chat_id=ADMIN_USER_ID, text=f"Создан новый тикет (ID {ticket_id}) от пользователя {username}.\n\nСообщение: {message}", reply_markup=get_admin_keyboard(last_ticket_id=ticket_id))
+                else:
+                    await update.message.reply_text("Если вы не получили ответ на свой вопрос, попробуйте создать тикет заново.", reply_markup=ReplyKeyboardMarkup([["Оставить тикет 📩"]], resize_keyboard=True))
             context.user_data["awaiting_ticket_description"] = False
         else:
-            conn = sqlite3.connect(DB_NAME)
-            cursor = conn.cursor()
-            cursor.execute('SELECT id FROM tickets WHERE user_id = ? AND status = "open"', (user_id,))
-            active_ticket = cursor.fetchone()
-            conn.close()
-            if active_ticket:
-                ticket_id = active_ticket[0]
-                add_ticket_message(ticket_id, user_id, message)
-                await update.message.reply_text("Сообщение добавлено в тикет. 📝")
-                await context.bot.send_message(chat_id=ADMIN_USER_ID, text=f"Тикет (ID {ticket_id}) обновлен пользователем {username}.\n\nНовое сообщение: {message}", reply_markup=get_admin_keyboard(last_ticket_id=ticket_id))
-            else:
-                await update.message.reply_text("Используй кнопки для управления тикетами. 🎛️", reply_markup=user_keyboard)
+            await update.message.reply_text("Используй кнопки для управления тикетами. 🎛️", reply_markup=user_keyboard)
         return
+
     if re.match(r"^Назад\s*🔙$", message):
         await update.message.reply_text("Возвращаемся в главное меню. 🏠", reply_markup=get_admin_keyboard())
         context.user_data.pop("selected_ticket_id", None)
@@ -244,13 +250,7 @@ async def close_user_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ticket_id = active_ticket[0]
             close_ticket(ticket_id)
             await update.message.reply_text("Тикет закрыт. ✅", reply_markup=ReplyKeyboardMarkup([["Оставить тикет 📩"]], resize_keyboard=True))
-
-            # ресет клавы у админа, после закрытие клиентом и текст и лень писать
-            await context.bot.send_message(
-                chat_id=ADMIN_USER_ID,
-                text=f"Тикет (ID {ticket_id}) был закрыт клиентом.",
-                reply_markup=get_admin_keyboard()
-            )
+            await context.bot.send_message(chat_id=ADMIN_USER_ID, text=f"Тикет (ID {ticket_id}) был закрыт клиентом.", reply_markup=get_admin_keyboard())
         else:
             await update.message.reply_text("У тебя нет активных тикетов. ❌", reply_markup=ReplyKeyboardMarkup([["Оставить тикет 📩"]], resize_keyboard=True))
 
@@ -313,3 +313,10 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+``` Ты бегаешь за девочкой, с которой я был вместе
+Ты слушаешь с друзьями мои песни
+И если я был бы ещё чуточку известнее
+Весь мир перевернул, приставив к горлу лезвие
+Лесби — твой выход, ведь ты не найдёшь тут никого похуже
+```
