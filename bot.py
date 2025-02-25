@@ -6,6 +6,7 @@ from openai import OpenAI
 from config import BOT_TOKEN, ADMIN_USER_ID, DB_NAME, OPENAI_API_KEY, OPENAI_PROMPT
 
 client = OpenAI(api_key=OPENAI_API_KEY, base_url="https://api.aitunnel.ru/v1/")
+BOT_USER_ID = 0
 
 def get_chatgpt_response(prompt):
     try:
@@ -67,7 +68,7 @@ def add_ticket_message(ticket_id: int, sender_id: int, message: str):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute('INSERT INTO ticket_messages (ticket_id, sender_id, message) VALUES (?, ?, ?)', (ticket_id, sender_id, message))
-    if sender_id != ADMIN_USER_ID:
+    if sender_id != ADMIN_USER_ID and sender_id != BOT_USER_ID:
         cursor.execute('UPDATE tickets SET updated = TRUE WHERE id = ?', (ticket_id,))
     conn.commit()
     conn.close()
@@ -176,7 +177,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                 if should_create_ticket(chatgpt_response):
                     ticket_id = add_ticket(user_id, username, message)
                     add_ticket_message(ticket_id, user_id, message)
-                    add_ticket_message(ticket_id, ADMIN_USER_ID, chatgpt_response)
+                    add_ticket_message(ticket_id, BOT_USER_ID, chatgpt_response)
                     await update.message.reply_text("Тикет передан админу, скоро с вами свяжутся. 📩", reply_markup=ReplyKeyboardMarkup([["Закрыть тикет 🚪"]], resize_keyboard=True))
                     await context.bot.send_message(chat_id=ADMIN_USER_ID, text=f"Создан новый тикет (ID {ticket_id}) от пользователя {username}.\n\nСообщение: {message}", reply_markup=get_admin_keyboard(last_ticket_id=ticket_id))
                 else:
@@ -277,7 +278,12 @@ async def reply_to_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE):
         messages = get_ticket_messages(ticket_id)
         response = f"Переписка по тикету {ticket_id} с @{username}:\n\n"
         for msg in messages:
-            sender = "Админ" if msg[0] == ADMIN_USER_ID else "Пользователь"
+            if msg[0] == ADMIN_USER_ID:
+                sender = "Админ"
+            elif msg[0] == BOT_USER_ID:
+                sender = "🤖Бот"
+            else:
+                sender = "Пользователь"
             response += f"{sender}: {msg[1]}\n"
         await update.message.reply_text(response, reply_markup=ReplyKeyboardMarkup([["Закрыть тикет ❌", "Назад 🔙"]], resize_keyboard=True))
         context.user_data["selected_ticket_id"] = ticket_id
