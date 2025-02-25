@@ -153,6 +153,7 @@ async def create_ticket(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     message = update.message.text
+
     if user_id != ADMIN_USER_ID:
         conn = sqlite3.connect(DB_NAME)
         cursor = conn.cursor()
@@ -161,7 +162,10 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         conn.close()
 
         if active_ticket:
-            await update.message.reply_text("Используй кнопки для управления тикетами. 🎛️", reply_markup=ReplyKeyboardMarkup([["Закрыть тикет 🚪"]], resize_keyboard=True))
+            ticket_id = active_ticket[0]
+            add_ticket_message(ticket_id, user_id, message)
+            await context.bot.send_message(chat_id=ADMIN_USER_ID, text=f"Новое сообщение в тикете (ID {ticket_id}):\n\n{message}", reply_markup=get_admin_keyboard(last_ticket_id=ticket_id))
+            await update.message.reply_text("Сообщение отправлено администратору. Ожидайте ответа. 📩", reply_markup=ReplyKeyboardMarkup([["Закрыть тикет 🚪"]], resize_keyboard=True))
             return
 
         if context.user_data.get("awaiting_ticket_description"):
@@ -176,7 +180,7 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     await update.message.reply_text("Тикет передан админу, скоро с вами свяжутся. 📩", reply_markup=ReplyKeyboardMarkup([["Закрыть тикет 🚪"]], resize_keyboard=True))
                     await context.bot.send_message(chat_id=ADMIN_USER_ID, text=f"Создан новый тикет (ID {ticket_id}) от пользователя {username}.\n\nСообщение: {message}", reply_markup=get_admin_keyboard(last_ticket_id=ticket_id))
                 else:
-                    await update.message.reply_text("Если вы не получили ответ на свой вопрос, попробуйте создать тикет заново.", reply_markup=ReplyKeyboardMarkup([["Оставить тикет 📩"]], resize_keyboard=True))
+                    await update.message.reply_text("Бот закрыл тикет. Если вы не получили ответ на ваш вопрос, попросите в слелующем тикете, позвать администратора.", reply_markup=ReplyKeyboardMarkup([["Оставить тикет 📩"]], resize_keyboard=True))
             context.user_data["awaiting_ticket_description"] = False
         else:
             await update.message.reply_text("Используй кнопки для управления тикетами. 🎛️", reply_markup=user_keyboard)
@@ -313,10 +317,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-"""Ты бегаешь за девочкой, с которой я был вместе
-Ты слушаешь с друзьями мои песни
-И если я был бы ещё чуточку известнее
-Весь мир перевернул, приставив к горлу лезвие
-Лесби — твой выход, ведь ты не найдёшь тут никого похуже
-"""
