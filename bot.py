@@ -183,7 +183,6 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     await update.message.reply_text("Бот закрыл тикет. Если вы не получили ответ на ваш вопрос, попросите в следующем тикете позвать администратора.", reply_markup=ReplyKeyboardMarkup([["Оставить тикет 📩"]], resize_keyboard=True))
             context.user_data["awaiting_ticket_description"] = False
         else:
-            # Убрано лишнее сообщение "Используй кнопки для управления тикетами. 🎛️"
             pass
         return
 
