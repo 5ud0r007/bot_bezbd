@@ -180,10 +180,11 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
                     await update.message.reply_text("Тикет передан админу, скоро с вами свяжутся. 📩", reply_markup=ReplyKeyboardMarkup([["Закрыть тикет 🚪"]], resize_keyboard=True))
                     await context.bot.send_message(chat_id=ADMIN_USER_ID, text=f"Создан новый тикет (ID {ticket_id}) от пользователя {username}.\n\nСообщение: {message}", reply_markup=get_admin_keyboard(last_ticket_id=ticket_id))
                 else:
-                    await update.message.reply_text("Бот закрыл тикет. Если вы не получили ответ на ваш вопрос, попросите в слелующем тикете, позвать администратора.", reply_markup=ReplyKeyboardMarkup([["Оставить тикет 📩"]], resize_keyboard=True))
+                    await update.message.reply_text("Бот закрыл тикет. Если вы не получили ответ на ваш вопрос, попросите в следующем тикете позвать администратора.", reply_markup=ReplyKeyboardMarkup([["Оставить тикет 📩"]], resize_keyboard=True))
             context.user_data["awaiting_ticket_description"] = False
         else:
-            await update.message.reply_text("Используй кнопки для управления тикетами. 🎛️", reply_markup=user_keyboard)
+            # Убрано лишнее сообщение "Используй кнопки для управления тикетами. 🎛️"
+            pass
         return
 
     if re.match(r"^Назад\s*🔙$", message):
