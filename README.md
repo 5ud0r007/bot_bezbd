@@ -37,7 +37,6 @@
 bot_bezbd/
 ├── bot.py                # Основной файл бота
 ├── config.py             # Файл конфигурации
-├── tickets.db            # База данных SQLite
 └── requirements.txt      # Зависимости
 ```
 🤝 Контакты
