@@ -1,86 +1,90 @@
+Запустите вашего бота поддержки и улучшите обслуживание клиентов с помощью автоматизации на базе искусственного интеллекта!
+
+---
+
 <div align="center">
-  <img src="https://github.com/5ud0r007/bot_bezbd/blob/main/readme_photo/photo%201.gif" alt="Bot Demo" width="100%">
-  <h1>Telegram Support Bot</h1>
-  <p>A powerful Telegram bot for managing support tickets with AI integration</p>
+  <img src="https://github.com/5ud0r007/bot_bezbd/blob/main/readme_photo/photo%201.gif" alt="Демо бота" width="100%">
+  <h1>Telegram-бот для поддержки</h1>
+  <p>Мощный Telegram-бот для управления заявками с интеграцией искусственного интеллекта</p>
 </div>
 
 ---
 
-## 📖 Overview
+## 📖 Обзор
 
-This Telegram bot streamlines customer support by allowing users to create tickets and administrators to manage them efficiently. Integrated with OpenAI's GPT-3.5 Turbo, the bot provides automated responses to common queries, escalates complex issues to admins, and ensures smooth communication.
-
----
-
-## ✨ Features
-
-- **Ticket Creation**: Users can submit tickets to report issues or ask questions.
-- **Admin Management**: Admins can view, respond to, and close tickets directly in Telegram.
-- **AI-Powered Responses**: Leverages OpenAI GPT-3.5 Turbo to:
-  - Answer FAQs (e.g., studio hours, address).
-  - Request clarification for vague queries.
-  - Handle aggressive messages with polite redirection.
-- **Real-Time Notifications**: Admins receive instant updates on new tickets and user replies.
-- **PostgreSQL Integration**: Robust database for storing ticket and message data.
+Этот Telegram-бот упрощает работу службы поддержки, позволяя пользователям создавать заявки, а администраторам — эффективно их обрабатывать. Благодаря интеграции с GPT-3.5 Turbo от OpenAI бот автоматически отвечает на частые вопросы, перенаправляет сложные запросы администраторам и обеспечивает плавное взаимодействие.
 
 ---
 
-## 🛠️ Installation
+## ✨ Возможности
 
-### Prerequisites
+- **Создание заявок**: Пользователи могут отправлять заявки для сообщения о проблемах или задавать вопросы.
+- **Управление для администраторов**: Админы могут просматривать, отвечать и закрывать заявки прямо в Telegram.
+- **Ответы на базе ИИ**: Использует GPT-3.5 Turbo от OpenAI для:
+  - Ответов на частые вопросы (например, часы работы, адрес).
+  - Запроса уточнений при неясных сообщениях.
+  - Вежливого реагирования на агрессивные сообщения.
+- **Мгновенные уведомления**: Администраторы получают уведомления о новых заявках и ответах пользователей в реальном времени.
+- **Интеграция с PostgreSQL**: Надёжная база данных для хранения информации о заявках и сообщениях.
+
+---
+
+## 🛠️ Установка
+
+### Требования
 - Python 3.8+
-- PostgreSQL database
-- OpenAI API key
-- Telegram Bot Token (via [BotFather](https://t.me/BotFather))
+- База данных PostgreSQL
+- Ключ API OpenAI
+- Токен Telegram-бота (получается через [BotFather](https://t.me/BotFather))
 
-### Steps
-1. **Clone the Repository**:
+### Шаги
+1. **Клонируйте репозиторий**:
    ```bash
    git clone https://github.com/5ud0r007/bot_bezbd.git
    cd bot_bezbd
    ```
 
-2. **Configure Settings**:
-   - Open `config.py` and add:
-     - `BOT_TOKEN`: Your Telegram bot token.
-     - `ADMIN_USER_ID`: Telegram ID of the admin.
-     - `OPENAI_API_KEY`: Your OpenAI API key.
-     - `DB_CONNECTION`: PostgreSQL connection string (e.g., `postgresql://user:password@localhost:5432/tickets`).
-     - `OPENAI_PROMPT`: Customize the AI prompt if needed.
+2. **Настройте конфигурацию**:
+   - Откройте файл `config.py` и укажите:
+     - `BOT_TOKEN`: Токен вашего Telegram-бота.
+     - `ADMIN_USER_ID`: Telegram ID администратора.
+     - `OPENAI_API_KEY`: Ваш ключ API OpenAI.
+     - `DB_CONNECTION`: Строка подключения к PostgreSQL (например, `postgresql://user:password@localhost:5432/tickets`).
+     - `OPENAI_PROMPT`: Настройте промпт для ИИ, если требуется.
 
-3. **Install Dependencies**:
+3. **Установите зависимости**:
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Run the Bot**:
+4. **Запустите бота**:
    ```bash
    python main.py
    ```
 
 ---
 
-## 📂 Project Structure
+## 📂 Структура проекта
 
 ```
 bot_bezbd/
-├── main.py               # Core bot logic
-├── config.py             # Configuration settings
-├── requirements.txt      # Project dependencies
-└── readme_photo/         # Assets for README
+├── main.py               # Основная логика бота
+├── config.py             # Настройки конфигурации
+├── requirements.txt      # Зависимости проекта
+└── readme_photo/         # Изображения для README
 ```
 
 ---
 
-## 🤝 Contact
+## 🤝 Контакты
 
-Have questions or suggestions? Reach out!
+Есть вопросы или предложения? Свяжитесь с нами!
 
 - **Telegram**: [LOADERAW](https://t.me/SoulArcanum)
-- **Email**: Not available
+- **Email**: Недоступен
 
 ---
 
-## 🚀 Ready to Go!
+## 🚀 Готово к запуску!
 
-Launch your support bot and enhance your customer service with AI-driven automation!
+Запустите вашего бота поддержки и повысьте качество обслуживания клиентов с помощью автоматизации на базе ИИ!
