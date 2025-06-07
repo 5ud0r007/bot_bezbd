@@ -1,7 +1,7 @@
-BOT_TOKEN = "7624420357:AAGaNMCFyQqYJsBKgrWYubqJLx0fxXYN6pE"
-ADMIN_USER_ID = 7408326930
-DB_CONNECTION = "postgresql://user:password@localhost:5432/tickets"
-OPENAI_API_KEY = "sk-aitunnel-i0e30zvD7fNAsBy4QRV5pptmww3YmHHE"
+BOT_TOKEN = "######:###########################"
+ADMIN_USER_ID = ########
+DB_CONNECTION = "#################################"
+OPENAI_API_KEY = "#################################"
 OPENAI_BASE_URL = "https://api.aitunnel.ru/v1/"
 OPENAI_MODEL = "gpt-3.5-turbo"
 OPENAI_PROMPT = """
